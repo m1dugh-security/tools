@@ -16,7 +16,7 @@
     in {
 
         packages.${system} = {
-            subdomainTakeover =
+            takesubs =
             let
                 src = "./shell/subdomainTakeover.sh";
             in pkgs.stdenv.mkDerivation {
@@ -42,11 +42,11 @@
         apps.${system} = 
         let
             mypkgs = self.packages.${system};
-            inherit (mypkgs) subdomainTakeover;
+            inherit (mypkgs) takesubs;
         in {
             takesubs = {
                 type = "app";
-                program = "${subdomainTakeover}/bin/takesubs";
+                program = "${takesubs}/bin/takesubs";
             };
         };
     };
