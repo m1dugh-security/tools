@@ -25,8 +25,6 @@
 
                 propagetedBuildInputs = with pkgs; [
                     bind
-                    curl
-                    jq
                 ];
 
                 configurePhase = ''
