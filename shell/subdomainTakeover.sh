@@ -32,6 +32,37 @@ function checkAvailable() {
 
 }
 
+# functions expecting the CNAME record
+function checkGithub() {
+    cname=$1
+    body=$(curl -g "https://$cname" 2> /dev/null)
+    if [[ "$body" =~ .*"There isn't a GitHub Pages site here.".* ]];then
+        return 0
+    else
+        return 1
+    fi
+}
+
+function checkAws () {
+    cname=$1
+    body=$(curl -g "https://$cname" 2> /dev/null)
+    if [[ "$body" =~ .*"The specified bucket does not exist".* ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+function checkWordpress () {
+    cname=$1
+    body=$(curl -g "https://$cname" 2> /dev/null)
+    if [[ "$body" =~ .*"Do you want to register".* ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 while read sub;do
     cname=$(dig $sub cname | grep "CNAME" | grep -v ";" | grep -Eo "(\w+\.)+[a-z]{2,10}\.$")
     if [ `printf "$cname" | wc -c` -gt 0 ]; then
@@ -39,8 +70,12 @@ while read sub;do
         checkAvailable $domain
         if [ $? -eq 0 ];then
             printSuccess "subdomain $sub linked to $cname can be taken over"
-        elif [ "$domain" = "github.io" ]; then
-            printErr "github" # TODO: implement check for other subdomains
+        elif [[ "$cname" = "github.io" ]] && (checkGithub $cname); then
+            printSuccess "github: $sub -> $cname"
+        elif [[ "$cname" =~ .*"s3.amazonaws.com" ]] && (checkAws $cname); then
+            printSuccess "aws: $sub -> $cname"
+        elif [[ "$cname" =~ .*"wordpress.com" ]] && (checkWordpress $cname); then
+            printSuccess "wordpress: $sub -> $cname"
         else
             printErr $sub
         fi
