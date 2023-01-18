@@ -11,47 +11,53 @@
     }: 
     let
         system = "x86_64-linux";
-        pkgs = nixpkgs.legacyPackages.${system};
         inherit (nixpkgs) lib;
+        supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-linux" "aarch64-linux" ];
+        forAllSystems = lib.genAttrs supportedSystems;
+        nixpkgsFor = forAllSystems(system: import nixpkgs { inherit system; });
     in {
 
-        packages.${system} = {
-            takesubs =
+        packages = forAllSystems(system:
             let
-                src = "./shell/subdomainTakeover.sh";
-            in pkgs.stdenv.mkDerivation {
-                name = "takesubs";
-                src = ./.; 
+                pkgs = nixpkgsFor.${system};
+            in {
+                takesubs =
+                let
+                    src = "./shell/subdomainTakeover.sh";
+                in pkgs.stdenv.mkDerivation {
+                    name = "takesubs";
+                    src = ./.; 
 
-                propagetedBuildInputs = with pkgs; [
-                    bind
-                ];
+                    propagetedBuildInputs = with pkgs; [
+                        bind
+                    ];
 
-                configurePhase = ''
-                    mkdir -p $out/bin
-                    '';
+                    configurePhase = ''
+                        mkdir -p $out/bin
+                        '';
 
-                installPhase = ''
-                    install -D -m 0555 ${src} $out/bin/takesubs
-                    '';
-            };
+                    installPhase = ''
+                        install -D -m 0555 ${src} $out/bin/takesubs
+                        '';
+                };
 
-            discordlog = pkgs.buildGoModule rec {
-                pname = "discordlog";
-                src = ./. + "/go/discordlog";
-                version = "0.0.1";
+                discordlog = pkgs.buildGoModule rec {
+                    pname = "discordlog";
+                    src = ./. + "/go/discordlog";
+                    version = "0.0.1";
 
-                vendorHash = "sha256-Pdz3EpIZSxTHhf5tZ34iZnVRp2lKTWh61QAvRyrTLJg=";
-            };
-        };
+                    vendorHash = "sha256-Pdz3EpIZSxTHhf5tZ34iZnVRp2lKTWh61QAvRyrTLJg=";
+                };
+            }
+        );
 
-        apps.${system} = 
+        apps = forAllSystems(system: 
         let
+            pkgs = nixpkgsFor.${system};
             mypkgs = self.packages.${system};
             inherit (mypkgs)
             takesubs
-            discordlog
-            ;
+            discordlog;
         in {
             takesubs = {
                 type = "app";
@@ -62,15 +68,18 @@
                 type = "app";
                 program = "${discordlog}/bin/discordlog";
             };
-        };
+        });
 
-        devShells.${system} = {
+        devShells = forAllSystems(system: 
+        let
+            pkgs = nixpkgsFor.${system};
+        in {
             go = pkgs.mkShell {
                 nativeBuildInputs = with pkgs; [
                     gnumake
                     go
                 ];
             };
-        };
+        });
     };
 }
