@@ -35,16 +35,41 @@
                     install -D -m 0555 ${src} $out/bin/takesubs
                     '';
             };
+
+            discordlog = pkgs.buildGoModule rec {
+                pname = "discordlog";
+                src = ./. + "/go/discordlog";
+                version = "0.0.1";
+
+                vendorHash = "sha256-Pdz3EpIZSxTHhf5tZ34iZnVRp2lKTWh61QAvRyrTLJg=";
+            };
         };
 
         apps.${system} = 
         let
             mypkgs = self.packages.${system};
-            inherit (mypkgs) takesubs;
+            inherit (mypkgs)
+            takesubs
+            discordlog
+            ;
         in {
             takesubs = {
                 type = "app";
                 program = "${takesubs}/bin/takesubs";
+            };
+
+            discordlog = {
+                type = "app";
+                program = "${discordlog}/bin/discordlog";
+            };
+        };
+
+        devShells.${system} = {
+            go = pkgs.mkShell {
+                nativeBuildInputs = with pkgs; [
+                    gnumake
+                    go
+                ];
             };
         };
     };
