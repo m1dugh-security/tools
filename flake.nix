@@ -1,13 +1,10 @@
 {
     description = "Some tools for bug bounty hunting";
 
-    inputs = {
-        nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    };
-
     outputs = {
         self,
-        nixpkgs
+        nixpkgs,
+        ...
     }: 
     let
         system = "x86_64-linux";
@@ -48,6 +45,14 @@
 
                     vendorHash = "sha256-Pdz3EpIZSxTHhf5tZ34iZnVRp2lKTWh61QAvRyrTLJg=";
                 };
+
+                filesetup = pkgs.buildGoModule rec {
+                    pname = "filesetup";
+                    src = ./. + "/go/filesetup";
+                    version = "0.0.1";
+
+                    vendorHash = "sha256-nOA56vsDcqiVaF/4ETNt/9rphwBdPt3yFogCJ7ILN3M=";
+                };
             }
         );
 
@@ -57,7 +62,8 @@
             mypkgs = self.packages.${system};
             inherit (mypkgs)
             takesubs
-            discordlog;
+            discordlog
+            filesetup;
         in {
             takesubs = {
                 type = "app";
@@ -67,6 +73,11 @@
             discordlog = {
                 type = "app";
                 program = "${discordlog}/bin/discordlog";
+            };
+
+            filesetup = {
+                type = "app";
+                program = "${filesetup}/bin/filesetup";
             };
         });
 
