@@ -1,20 +1,17 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-    "path"
 	"log"
 	"os"
-	"regexp"
-    "encoding/json"
-	"github.com/m1dugh/program-browser/pkg/bugcrowd"
-	programs "github.com/m1dugh/program-browser/pkg/program-browser"
+	"path"
+	"github.com/m1dugh/program-browser/pkg/browser"
 	"github.com/m1dugh/program-browser/pkg/types"
+	"github.com/m1dugh/program-browser/pkg/utils"
 )
-
-var webRegexp = regexp.MustCompile("[Ww]ebsite")
 
 func CreateFolder(root, platform, program string) (string, error) {
     url := path.Join(root, platform, program)
@@ -35,7 +32,7 @@ func CreateFolder(root, platform, program string) (string, error) {
 
 func CreateProgramFiles(root string, program *types.Program) error {
     
-    scope := program.GetScope(webRegexp)
+    scope := program.GetScope(types.API, types.Website)
     urls, domains := scope.ExtractInfo()
 
     filePath := path.Join(root, "urls.txt")
@@ -81,6 +78,19 @@ func CreateProgramFiles(root string, program *types.Program) error {
         return errors.New(fmt.Sprintf("Error while closing %s", filePath))
     }
 
+    filePath = path.Join(root, "scope.json")
+    file, err = os.Create(filePath)
+    if err != nil {
+        return errors.New(fmt.Sprintf("Error while creating %s", filePath))
+    }
+
+    body, err = scope.ToBurpScope()
+    file.Write(body)
+    err = file.Close()
+    if err != nil {
+        return errors.New(fmt.Sprintf("Error while closing %s", filePath))
+    }
+
     return nil
 }
 
@@ -88,6 +98,9 @@ func main() {
 
     var outputFolder string
     flag.StringVar(&outputFolder, "o", "", "The path to output at")
+
+    var settingsFile string
+    flag.StringVar(&settingsFile, "settings", "", "The path to the settings file")
     
     flag.Parse()
 
@@ -95,12 +108,23 @@ func main() {
         log.Fatal("missing -o flag")
     }
 
-    boptions := bugcrowd.DefaultOptions()
-    boptions.MaxPrograms = 5
+    var options *browser.Options
 
-    options := programs.DefaultOptions()
-    options.BugcrowdOptions = boptions
-    browser := programs.New(options)
+    if len(settingsFile) == 0 {
+        options = browser.DefaultOptions()
+    } else {
+        body, err := os.ReadFile(settingsFile)
+        if err != nil {
+            log.Fatal(err)
+        }
+        options, err = utils.DeserializeOptions(body)
+        if err != nil {
+            log.Fatal(err)
+        }
+    }
+
+
+    browser := browser.New(options)
 
     results, err := browser.GetPrograms()
     if err != nil {
