@@ -6,7 +6,7 @@ import (
     "errors"
     "io"
     "github.com/bwmarrin/discordgo"
-    storage "github.com/m1dugh/recon-engine/internal/database"
+    storage "github.com/m1dugh-security/tools/go/recon-engine/internal/database"
     "encoding/json"
     "sync"
 )

@@ -3,7 +3,7 @@ package main
 import (
     "fmt"
     "log"
-    "github.com/m1dugh/recon-engine/pkg/recon"
+    "github.com/m1dugh-security/tools/go/recon-engine/pkg/recon"
 )
 
 func main() {

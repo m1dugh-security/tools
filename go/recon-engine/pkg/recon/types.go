@@ -1,13 +1,15 @@
 package recon
 
 import (
-    "io"
-    "log"
-    "github.com/m1dugh/gocrawler/pkg/gocrawler"
-    datamanager "github.com/m1dugh/recon-engine/internal/database"
-    "github.com/m1dugh/recon-engine/pkg/types"
-    "github.com/m1dugh/recon-engine/internal/broadcast"
-    "github.com/m1dugh/nmapgo/pkg/nmapgo"
+	"io"
+	"log"
+
+	"github.com/m1dugh-security/tools/go/recon-engine/internal/broadcast"
+	datamanager "github.com/m1dugh-security/tools/go/recon-engine/internal/database"
+	"github.com/m1dugh-security/tools/go/recon-engine/pkg/types"
+	"github.com/m1dugh/gocrawler/pkg/gocrawler"
+	"github.com/m1dugh/nmapgo/pkg/nmapgo"
+	"github.com/m1dugh/program-browser/pkg/browser"
 )
 
 type StageScope int
@@ -64,6 +66,7 @@ type Options struct {
     ScannerOptions          *nmapgo.Options
     CrawlerConfig           *gocrawler.Config
     DBConfig                *datamanager.Config
+    ProgramBrowserConfig    *browser.Options
 }
 
 func DefaultOptions() *Options {
@@ -74,6 +77,7 @@ func DefaultOptions() *Options {
         ScannerOptions: nmapgo.NewOptions(),
         CrawlerConfig: gocrawler.DefaultConfig(),
         DBConfig: datamanager.DefaultConfig(),
+        ProgramBrowserConfig: browser.DefaultOptions(),
     }
 }
 
@@ -87,5 +91,6 @@ type ReconEngine struct {
     Logger          *aggregatedLogger
     bot             *broadcast.DiscordBot
     writer          io.WriteCloser
+    programBrowser  *browser.ProgramBrowser
 }
 

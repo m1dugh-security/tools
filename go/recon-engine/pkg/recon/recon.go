@@ -1,23 +1,25 @@
 package recon
 
 import (
-    "log"
-    "os"
-    "io"
-    "fmt"
-    "github.com/m1dugh/recon-engine/pkg/programs"
-    "github.com/m1dugh/recon-engine/internal/broadcast"
-    datamanager "github.com/m1dugh/recon-engine/internal/database"
-    "github.com/m1dugh/recon-engine/pkg/subdomains"
-    "github.com/m1dugh/recon-engine/pkg/portsrecon"
-    "github.com/m1dugh/recon-engine/pkg/httprobe"
-    "github.com/m1dugh/recon-engine/pkg/urls"
-    "github.com/m1dugh/recon-engine/pkg/types"
-    ptypes "github.com/m1dugh/recon-engine/pkg/programs/types"
-    "github.com/m1dugh/nmapgo/pkg/nmapgo"
-    "github.com/m1dugh/gocrawler/pkg/gocrawler"
-    "errors"
-    "regexp"
+	"errors"
+	"fmt"
+	"io"
+	"log"
+	"os"
+
+	"github.com/m1dugh-security/tools/go/recon-engine/internal/broadcast"
+	datamanager "github.com/m1dugh-security/tools/go/recon-engine/internal/database"
+	"github.com/m1dugh-security/tools/go/recon-engine/pkg/httprobe"
+	"github.com/m1dugh-security/tools/go/recon-engine/pkg/portsrecon"
+	"github.com/m1dugh-security/tools/go/recon-engine/pkg/subdomains"
+	. "github.com/m1dugh-security/tools/go/recon-engine/pkg/types"
+	"github.com/m1dugh-security/tools/go/recon-engine/pkg/urls"
+	"github.com/m1dugh-security/tools/go/utils/pkg/utils"
+	"github.com/m1dugh/gocrawler/pkg/gocrawler"
+	"github.com/m1dugh/nmapgo/pkg/nmapgo"
+	"github.com/m1dugh/program-browser/pkg/browser"
+	programs "github.com/m1dugh/program-browser/pkg/browser"
+	"github.com/m1dugh/program-browser/pkg/types"
 )
 
 
@@ -44,7 +46,7 @@ func New(options *Options) (*ReconEngine, error) {
         return nil, errors.New(msg)
     }
 
-    masterThrottler := types.NewThreadThrottler(options.MaxConcurrentPrograms)
+    masterThrottler := utils.NewThreadThrottler(options.MaxConcurrentPrograms)
 
     scanner, err := nmapgo.NewScanner(options.ScannerOptions)
     if err != nil {
@@ -63,6 +65,7 @@ func New(options *Options) (*ReconEngine, error) {
         Logger: logger,
         bot: bot,
         writer: pipeWriter,
+        programBrowser: browser.New(options.ProgramBrowserConfig),
     }
     err = res.DataManager.Init()
     if err != nil {
@@ -74,11 +77,9 @@ func New(options *Options) (*ReconEngine, error) {
     return res, nil
 }
 
-var _webRegex *regexp.Regexp = regexp.MustCompile(`web|api|http`)
-
 func (eng *ReconEngine) FindPrograms() error {
     eng.Logger.Info("Fetching programs")
-    programs, err := programs.GetPrograms(nil)
+    programs, err := eng.programBrowser.GetPrograms()
     if err != nil {
         eng.Logger.Error("%s", err)
         return errors.New("ReconEngine.FindPrograms: could not fetch programs")
@@ -94,8 +95,8 @@ func (eng *ReconEngine) FindPrograms() error {
     return nil
 }
 
-func fetchSubdomainsWorker(prog *types.ReconedProgram,
-throttler *types.ThreadThrottler) {
+func fetchSubdomainsWorker(prog *ReconedProgram,
+throttler *utils.ThreadThrottler) {
     defer throttler.Done()
     err := subdomains.FetchSubdomains(prog)
     if err != nil {
@@ -117,8 +118,8 @@ func (eng *ReconEngine) FetchSubdomains() {
 func (eng *ReconEngine) HttpProbe() {
     for _, prog := range eng.Programs {
         eng.masterThrottler.RequestThread()
-        go func(throttler *types.ThreadThrottler,
-            prog *types.ReconedProgram,
+        go func(throttler *utils.ThreadThrottler,
+            prog *ReconedProgram,
             httpsOnly bool,
         ) {
             defer throttler.Done()
@@ -138,7 +139,7 @@ func (eng *ReconEngine) ScanSubdomains() error {
 
     for _, prog := range eng.Programs {
         eng.masterThrottler.RequestThread()
-        go func(throttler *types.ThreadThrottler, prog *types.ReconedProgram,
+        go func(throttler *utils.ThreadThrottler, prog *ReconedProgram,
             scanner *nmapgo.Scanner,
         ) {
             defer throttler.Done()
@@ -155,7 +156,7 @@ func (eng *ReconEngine) ScanSubdomains() error {
 func (eng *ReconEngine) FetchRobots() {
     for _, prog := range eng.Programs {
         eng.masterThrottler.RequestThread()
-        go func(throttler *types.ThreadThrottler, prog *types.ReconedProgram) {
+        go func(throttler *utils.ThreadThrottler, prog *ReconedProgram) {
             eng.Logger.Info("Fetching robots for %s", prog.Program.Code())
             urls.FetchUrls(prog)
             throttler.Done()
@@ -166,16 +167,12 @@ func (eng *ReconEngine) FetchRobots() {
 }
 
 
-func convertScope(scope *ptypes.Scope) *gocrawler.Scope {
-    return gocrawler.NewScope(scope.Include, scope.Exclude)
-}
-
 func (eng *ReconEngine) CrawlPages() {
     for _, prog := range eng.Programs {
-        scope := prog.Program.GetScope(_webRegex)
-        cr:= gocrawler.New(convertScope(scope), eng.Options.CrawlerConfig)
+        scope := prog.Program.GetScope(types.Website)
+        cr:= gocrawler.New(scope, eng.Options.CrawlerConfig)
         eng.masterThrottler.RequestThread()
-        go func (throttler *types.ThreadThrottler, prog *types.ReconedProgram, crawler *gocrawler.Crawler) {
+        go func (throttler *utils.ThreadThrottler, prog *utils.ReconedProgram, crawler *gocrawler.Crawler) {
             defer throttler.Done()
             eng.Logger.Info("Starting crawling for %s", prog.Program.Code())
             urls.CrawlProgram(prog, crawler)
@@ -207,7 +204,7 @@ func (eng *ReconEngine) SavePrograms() ([]datamanager.ProgramDiff, error) {
 }
 
 
-func (eng *ReconEngine) reconProgram(prog *types.ReconedProgram, stages *Stages) (datamanager.ProgramDiff, error) {
+func (eng *ReconEngine) reconProgram(prog *ReconedProgram, stages *Stages) (datamanager.ProgramDiff, error) {
 
     eng.Logger.Info("[START] Starting recon for %s", prog.Program.Code())
     exists, err := eng.DataManager.ProgramExists(prog.Program)
@@ -253,8 +250,8 @@ func (eng *ReconEngine) reconProgram(prog *types.ReconedProgram, stages *Stages)
 
     if _useStage(stages.Crawl) {
         eng.Logger.Info("Starting crawling for %s", prog.Program.Code())
-        scope := prog.Program.GetScope(_webRegex)
-        cr:= gocrawler.New(convertScope(scope), eng.Options.CrawlerConfig)
+        scope := prog.Program.GetScope(types.Website, types.API)
+        cr:= gocrawler.New(scope, eng.Options.CrawlerConfig)
         urls.CrawlProgram(prog, cr)
         eng.Logger.Info("Finished crawling for %s", prog.Program.Code())
     }
@@ -284,7 +281,7 @@ func (eng *ReconEngine) reconProgram(prog *types.ReconedProgram, stages *Stages)
     return datamanager.ProgramDiff{}, nil
 }
 
-func (eng *ReconEngine) reconProgramWorker(prog *types.ReconedProgram, stages *Stages, ch chan datamanager.ProgramDiff) {
+func (eng *ReconEngine) reconProgramWorker(prog *ReconedProgram, stages *Stages, ch chan datamanager.ProgramDiff) {
     diff, err := eng.reconProgram(prog, stages)
     eng.masterThrottler.Done()
     if err != nil {

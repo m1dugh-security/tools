@@ -23,21 +23,26 @@ func NewThreadThrottler(maxThreads uint) *ThreadThrottler {
 func (t *ThreadThrottler) RequestThread() {
     t.mut.Lock()
     defer t.mut.Unlock()
-    if t.threads < t.MaxThreads {
-        t.threads++;
+    t.threads++
+    if t.threads <= t.MaxThreads {
         t.wg.Add(1)
         return
     }
     t.mut.Unlock()
     for true {
         t.mut.Lock()
-        if t.threads < t.MaxThreads {
+        if t.threads <= t.MaxThreads {
             t.wg.Add(1)
-            t.threads++
             break
         }
         t.mut.Unlock()
     }
+}
+
+func (t *ThreadThrottler) Threads() uint {
+    t.mut.Lock()
+    defer t.mut.Unlock()
+    return t.threads
 }
 
 func (t *ThreadThrottler) Done() {

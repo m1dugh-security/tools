@@ -2,7 +2,7 @@ package database
 
 import (
     "database/sql"
-    "github.com/m1dugh/recon-engine/pkg/types"
+    "github.com/m1dugh-security/tools/go/recon-engine/pkg/types"
     "errors"
     "fmt"
 )

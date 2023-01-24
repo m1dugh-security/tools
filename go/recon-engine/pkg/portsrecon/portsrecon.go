@@ -1,12 +1,12 @@
 package portsrecon
 
 import (
-    . "github.com/m1dugh/recon-engine/pkg/types"
+    "github.com/m1dugh-security/tools/go/recon-engine/pkg/types"
     "github.com/m1dugh/nmapgo/pkg/nmapgo"
     "sync"
 )
 
-func scanSubdomainWorker(prog *ReconedProgram, scanner *nmapgo.Scanner,
+func scanSubdomainWorker(prog *types.ReconedProgram, scanner *nmapgo.Scanner,
 url string, mut *sync.Mutex) {
     defer prog.Throttler.Done()
     host, err := scanner.ScanHost(url)
@@ -21,7 +21,7 @@ url string, mut *sync.Mutex) {
     }
 }
 
-func ScanSubdomains(scanner *nmapgo.Scanner, prog *ReconedProgram) error {
+func ScanSubdomains(scanner *nmapgo.Scanner, prog *types.ReconedProgram) error {
     var mut sync.Mutex
     prog.Hosts = make([]*nmapgo.Host, 0, prog.Subdomains.Length())
     for _, url := range *prog.Subdomains {

@@ -1,11 +1,9 @@
 package types
 
 import (
-    "github.com/m1dugh/recon-engine/internal/types"
-    "github.com/m1dugh/recon-engine/internal/utils"
-    programs "github.com/m1dugh/recon-engine/pkg/programs/types"
+    "github.com/m1dugh-security/tools/go/utils/pkg/utils"
+    "github.com/m1dugh/program-browser/pkg/types"
     "github.com/m1dugh/nmapgo/pkg/nmapgo"
-    "regexp"
 )
 
 type ReconedUrl struct {
@@ -24,9 +22,9 @@ func (u ReconedUrl) Compare(other interface{}) int {
 }
 
 type ReconedProgram struct {
-    Program     *programs.Program
-    Subdomains  *types.StringSet
-    Urls        *types.ComparableSet[ReconedUrl]
+    Program     *types.Program
+    Subdomains  *utils.StringSet
+    Urls        *utils.ComparableSet[ReconedUrl]
     Hosts       []*nmapgo.Host
     Throttler   *ThreadThrottler
 }
@@ -40,9 +38,8 @@ func (prog *ReconedProgram) GetUrls() []string {
     return res
 }
 
-var _webRegex *regexp.Regexp = regexp.MustCompile(`web|api|http`)
 func (prog *ReconedProgram) ExtractScopeInfo() {
-    scope := prog.Program.GetScope(_webRegex)
+    scope := prog.Program.GetScope(types.Website, types.API)
     urls, subdomains := scope.ExtractInfo()
     for _, u := range urls.UnderlyingArray() {
         prog.Urls.AddElement(ReconedUrl{
@@ -51,17 +48,20 @@ func (prog *ReconedProgram) ExtractScopeInfo() {
             ResponseLength: -1,
         })
     }
-    prog.Subdomains.AddAll(subdomains)
+
+    for _, subdomain := range subdomains.UnderlyingArray() {
+        prog.Subdomains.AddWord(subdomain)
+    }
 }
 
-func NewReconedProgram(prog *programs.Program, throttler *ThreadThrottler) *ReconedProgram {
+func NewReconedProgram(prog *types.Program, throttler *ThreadThrottler) *ReconedProgram {
     res := &ReconedProgram{}
     res.Program = prog
     if throttler == nil {
         throttler = NewThreadThrottler(10)
     }
-    res.Subdomains = types.NewStringSet(nil)
-    res.Urls = types.NewComparableSet[ReconedUrl](nil)
+    res.Subdomains = utils.NewStringSet(nil)
+    res.Urls = utils.NewComparableSet[ReconedUrl](nil)
     res.Throttler = throttler
     return res
 }

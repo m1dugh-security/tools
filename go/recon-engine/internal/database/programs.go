@@ -4,7 +4,7 @@ import (
     "database/sql"
     "errors"
     "time"
-    ptypes "github.com/m1dugh/recon-engine/pkg/programs/types"
+    "github.com/m1dugh/program-browser/pkg/types"
     "fmt"
 )
 
@@ -92,7 +92,7 @@ func (data *DataManager) insertProgramDao(value programDao,
 }
 
 
-func (data *DataManager) insertProgram(p *ptypes.Program) (Diffs, int64, error) {
+func (data *DataManager) insertProgram(p *types.Program) (Diffs, int64, error) {
     if data.db == nil {
         return nil, -1, errors.New("DataManager has not been Init()")
     } else if err := data.db.Ping(); err != nil {
@@ -136,7 +136,7 @@ func (data *DataManager) insertProgram(p *ptypes.Program) (Diffs, int64, error) 
     return data.insertProgramDao(dao, find, del, insert, update, updateTimestamp)
 }
 
-func (data *DataManager) ProgramExists(p *ptypes.Program) (bool, error) {
+func (data *DataManager) ProgramExists(p *types.Program) (bool, error) {
     st, err := data.db.Prepare(countProgramQuery)
     if err != nil {
         return false, errors.New(fmt.Sprintf("Error on creating prepared statement: %s", err))

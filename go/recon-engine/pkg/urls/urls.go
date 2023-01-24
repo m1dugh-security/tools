@@ -1,8 +1,8 @@
 package urls
 
 import (
-    "github.com/m1dugh/recon-engine/pkg/types"
-    . "github.com/m1dugh/recon-engine/internal/types"
+    "github.com/m1dugh-security/tools/go/recon-engine/pkg/types"
+    "github.com/m1dugh-security/tools/go/utils/pkg/utils"
     "net/http"
     "regexp"
     "sync"
@@ -16,10 +16,10 @@ var (
 
 func fetchUrlsWorker(root string,
     client *http.Client,
-    res *StringSet,
+    res *utils.StringSet,
     throttler *types.ThreadThrottler,
     mut *sync.Mutex,
-    urls *ComparableSet[types.ReconedUrl],
+    urls *utils.ComparableSet[types.ReconedUrl],
 ) {
     defer throttler.Done()
     resp, err := client.Get(root + "/robots.txt")
@@ -28,7 +28,7 @@ func fetchUrlsWorker(root string,
     }
 
 
-    var found *StringSet = NewStringSet(nil)
+    var found *utils.StringSet = utils.NewStringSet(nil)
     scanner := bufio.NewScanner(resp.Body)
     defer resp.Body.Close()
     for scanner.Scan() {
@@ -59,14 +59,14 @@ func fetchUrlsWorker(root string,
 }
 
 func FetchUrls(prog *types.ReconedProgram) {
-    endpoint := NewStringSet(nil)
+    endpoint := utils.NewStringSet(nil)
     for _, url := range *prog.Urls {
         root := urlExtractor.FindString(url.Endpoint)
         endpoint.AddWord(root)
     }
 
     client := &http.Client{}
-    found := NewStringSet(nil)
+    found := utils.NewStringSet(nil)
     var mut sync.Mutex
     for _, url := range *endpoint {
         if len(url) == 0 {

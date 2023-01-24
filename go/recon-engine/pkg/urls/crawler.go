@@ -2,7 +2,7 @@ package urls
 
 import (
     "github.com/m1dugh/gocrawler/pkg/gocrawler"
-    "github.com/m1dugh/recon-engine/pkg/types"
+    "github.com/m1dugh-security/tools/go/recon-engine/pkg/types"
     "net/http"
 )
 
