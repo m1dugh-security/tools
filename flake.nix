@@ -9,7 +9,7 @@
     let
         system = "x86_64-linux";
         inherit (nixpkgs) lib;
-        supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-linux" "aarch64-linux" ];
+        supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
         forAllSystems = lib.genAttrs supportedSystems;
         nixpkgsFor = forAllSystems(system: import nixpkgs { inherit system; });
     in {
@@ -53,6 +53,16 @@
 
                     vendorHash = "sha256-nOA56vsDcqiVaF/4ETNt/9rphwBdPt3yFogCJ7ILN3M=";
                 };
+
+                recon-engine = pkgs.buildGoModule rec {
+                    pname = "recon";
+                    src = ./. + "/go/recon-engine";
+                    version = "0.0.1";
+
+                    doCheck = false;
+
+                    vendorHash = "sha256-kBbCTC8r5m4F108Ur9WMCQCK9qfVyRU8KcNHvOaxb2Q=";
+                };
             }
         );
 
@@ -63,7 +73,8 @@
             inherit (mypkgs)
             takesubs
             discordlog
-            filesetup;
+            filesetup
+            recon-engine;
         in {
             takesubs = {
                 type = "app";
@@ -79,6 +90,11 @@
                 type = "app";
                 program = "${filesetup}/bin/filesetup";
             };
+
+            recon-engine = {
+                type = "app";
+                program = "${recon-engine}/bin/recon";
+            };
         });
 
         devShells = forAllSystems(system: 
@@ -89,6 +105,7 @@
                 nativeBuildInputs = with pkgs; [
                     gnumake
                     go
+                    nmap
                 ];
             };
         });
