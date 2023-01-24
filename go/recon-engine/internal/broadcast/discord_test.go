@@ -4,7 +4,7 @@ import (
     "testing"
     "os"
     "fmt"
-    storage "github.com/m1dugh/recon-engine/internal/database"
+    storage "github.com/m1dugh-security/tools/go/recon-engine/internal/database"
 )
 
 func TestSendMessage(t *testing.T) {

@@ -26,7 +26,7 @@ type ReconedProgram struct {
     Subdomains  *utils.StringSet
     Urls        *utils.ComparableSet[ReconedUrl]
     Hosts       []*nmapgo.Host
-    Throttler   *ThreadThrottler
+    Throttler   *utils.ThreadThrottler
 }
 
 func (prog *ReconedProgram) GetUrls() []string {
@@ -54,11 +54,11 @@ func (prog *ReconedProgram) ExtractScopeInfo() {
     }
 }
 
-func NewReconedProgram(prog *types.Program, throttler *ThreadThrottler) *ReconedProgram {
+func NewReconedProgram(prog *types.Program, throttler *utils.ThreadThrottler) *ReconedProgram {
     res := &ReconedProgram{}
     res.Program = prog
     if throttler == nil {
-        throttler = NewThreadThrottler(10)
+        throttler = utils.NewThreadThrottler(10)
     }
     res.Subdomains = utils.NewStringSet(nil)
     res.Urls = utils.NewComparableSet[ReconedUrl](nil)

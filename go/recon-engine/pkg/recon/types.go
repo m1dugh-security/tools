@@ -7,6 +7,7 @@ import (
 	"github.com/m1dugh-security/tools/go/recon-engine/internal/broadcast"
 	datamanager "github.com/m1dugh-security/tools/go/recon-engine/internal/database"
 	"github.com/m1dugh-security/tools/go/recon-engine/pkg/types"
+	"github.com/m1dugh-security/tools/go/utils/pkg/utils"
 	"github.com/m1dugh/gocrawler/pkg/gocrawler"
 	"github.com/m1dugh/nmapgo/pkg/nmapgo"
 	"github.com/m1dugh/program-browser/pkg/browser"
@@ -85,7 +86,7 @@ func DefaultOptions() *Options {
 type ReconEngine struct {
     Options         *Options
     Programs        []*types.ReconedProgram
-    masterThrottler *types.ThreadThrottler
+    masterThrottler *utils.ThreadThrottler
     scanner         *nmapgo.Scanner
     DataManager     *datamanager.DataManager
     Logger          *aggregatedLogger

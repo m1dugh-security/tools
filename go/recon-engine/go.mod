@@ -10,7 +10,9 @@ require (
 require (
 	github.com/bwmarrin/discordgo v0.26.1
 	github.com/lib/pq v1.10.7
-	github.com/m1dugh/gocrawler v1.4.7
+	github.com/m1dugh-security/tools/go/utils v0.0.0-20230124173235-3d676e33bdf0
+	github.com/m1dugh/gocrawler v1.5.2
+	github.com/m1dugh/program-browser v0.0.2
 )
 
 require (
@@ -27,8 +29,6 @@ require (
 	github.com/hako/durafmt v0.0.0-20210316092057-3a2c319c1acd // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
-	github.com/m1dugh-security/tools/go/utils v0.0.0-20230124163947-c8817b4a746e // indirect
-	github.com/m1dugh/program-browser v0.0.1 // indirect
 	github.com/mholt/archiver v3.1.1+incompatible // indirect
 	github.com/microcosm-cc/bluemonday v1.0.20 // indirect
 	github.com/miekg/dns v1.1.50 // indirect
@@ -62,9 +62,9 @@ require (
 	go.uber.org/ratelimit v0.2.0 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
-	golang.org/x/net v0.0.0-20220927171203-f486391704dc // indirect
-	golang.org/x/sys v0.0.0-20220731174439-a90be440212d // indirect
-	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/net v0.5.0 // indirect
+	golang.org/x/sys v0.4.0 // indirect
+	golang.org/x/text v0.6.0 // indirect
 	golang.org/x/tools v0.1.12 // indirect
 	gopkg.in/djherbis/times.v1 v1.2.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

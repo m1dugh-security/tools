@@ -1,13 +1,14 @@
 package urls
 
 import (
-    "github.com/m1dugh-security/tools/go/recon-engine/pkg/types"
-    "github.com/m1dugh-security/tools/go/utils/pkg/utils"
-    "net/http"
-    "regexp"
-    "sync"
-    "bufio"
-    "strings"
+	"bufio"
+	"net/http"
+	"regexp"
+	"strings"
+	"sync"
+
+	"github.com/m1dugh-security/tools/go/recon-engine/pkg/types"
+	"github.com/m1dugh-security/tools/go/utils/pkg/utils"
 )
 
 var (
@@ -17,7 +18,7 @@ var (
 func fetchUrlsWorker(root string,
     client *http.Client,
     res *utils.StringSet,
-    throttler *types.ThreadThrottler,
+    throttler *utils.ThreadThrottler,
     mut *sync.Mutex,
     urls *utils.ComparableSet[types.ReconedUrl],
 ) {

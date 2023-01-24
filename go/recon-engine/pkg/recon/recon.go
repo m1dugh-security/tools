@@ -12,14 +12,14 @@ import (
 	"github.com/m1dugh-security/tools/go/recon-engine/pkg/httprobe"
 	"github.com/m1dugh-security/tools/go/recon-engine/pkg/portsrecon"
 	"github.com/m1dugh-security/tools/go/recon-engine/pkg/subdomains"
+	"github.com/m1dugh-security/tools/go/recon-engine/pkg/types"
 	. "github.com/m1dugh-security/tools/go/recon-engine/pkg/types"
 	"github.com/m1dugh-security/tools/go/recon-engine/pkg/urls"
 	"github.com/m1dugh-security/tools/go/utils/pkg/utils"
 	"github.com/m1dugh/gocrawler/pkg/gocrawler"
 	"github.com/m1dugh/nmapgo/pkg/nmapgo"
 	"github.com/m1dugh/program-browser/pkg/browser"
-	programs "github.com/m1dugh/program-browser/pkg/browser"
-	"github.com/m1dugh/program-browser/pkg/types"
+	ptypes "github.com/m1dugh/program-browser/pkg/types"
 )
 
 
@@ -85,13 +85,17 @@ func (eng *ReconEngine) FindPrograms() error {
         return errors.New("ReconEngine.FindPrograms: could not fetch programs")
     }
 
-    for _, prog := range programs {
-        prog.Throttler.MaxThreads = eng.Options.ThreadsPerProgram
-        eng.Logger.Info("Extracting scope info for %s", prog.Program.Code())
-        prog.ExtractScopeInfo()
+    var results []*types.ReconedProgram = make([]*types.ReconedProgram, len(programs))
+    for i, prog := range programs {
+        results[i] = types.NewReconedProgram(
+            prog,
+            utils.NewThreadThrottler(eng.Options.ThreadsPerProgram),
+        )
+        eng.Logger.Info("Extracting scope info for %s", prog.Code())
+        results[i].ExtractScopeInfo()
     }
 
-    eng.Programs = programs
+    eng.Programs = results
     return nil
 }
 
@@ -169,10 +173,10 @@ func (eng *ReconEngine) FetchRobots() {
 
 func (eng *ReconEngine) CrawlPages() {
     for _, prog := range eng.Programs {
-        scope := prog.Program.GetScope(types.Website)
+        scope := prog.Program.GetScope(ptypes.Website)
         cr:= gocrawler.New(scope, eng.Options.CrawlerConfig)
         eng.masterThrottler.RequestThread()
-        go func (throttler *utils.ThreadThrottler, prog *utils.ReconedProgram, crawler *gocrawler.Crawler) {
+        go func (throttler *utils.ThreadThrottler, prog *types.ReconedProgram, crawler *gocrawler.Crawler) {
             defer throttler.Done()
             eng.Logger.Info("Starting crawling for %s", prog.Program.Code())
             urls.CrawlProgram(prog, crawler)
@@ -250,7 +254,7 @@ func (eng *ReconEngine) reconProgram(prog *ReconedProgram, stages *Stages) (data
 
     if _useStage(stages.Crawl) {
         eng.Logger.Info("Starting crawling for %s", prog.Program.Code())
-        scope := prog.Program.GetScope(types.Website, types.API)
+        scope := prog.Program.GetScope(ptypes.Website, ptypes.API)
         cr:= gocrawler.New(scope, eng.Options.CrawlerConfig)
         urls.CrawlProgram(prog, cr)
         eng.Logger.Info("Finished crawling for %s", prog.Program.Code())

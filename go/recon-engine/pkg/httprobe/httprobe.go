@@ -16,7 +16,7 @@ import (
 /// This code is greatly inspired by @tomnomnom httprobe cli repo.
 /// https://github.com/tomnomnom/httprobe.git
 
-func httpProbeWorker(res *utils.ComparableSet[types.ReconedUrl], client *http.Client, throttler *types.ThreadThrottler, url string, mut *sync.Mutex) {
+func httpProbeWorker(res *utils.ComparableSet[types.ReconedUrl], client *http.Client, throttler *utils.ThreadThrottler, url string, mut *sync.Mutex) {
     if status, length := ping(client, url); status > 0 {
         mut.Lock()
         res.AddElement(types.ReconedUrl{
