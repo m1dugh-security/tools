@@ -1,5 +1,6 @@
 package database
 
+/*
 import (
     "database/sql"
     "github.com/m1dugh-security/tools/go/recon-engine/pkg/types"
@@ -87,3 +88,4 @@ func (data *DataManager) insertUrls(progId int64, urls []types.ReconedUrl) (Diff
 
     return res, nil
 }
+*/

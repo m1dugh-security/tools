@@ -1,5 +1,6 @@
 package database
 
+/*
 import (
     "database/sql"
     "errors"
@@ -63,3 +64,4 @@ func (data *DataManager) insertSubdomains(progId int64, subdomains []string) (Di
 
     return res, nil
 }
+*/

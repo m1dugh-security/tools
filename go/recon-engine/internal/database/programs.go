@@ -1,5 +1,5 @@
 package database
-
+/*
 import (
     "database/sql"
     "errors"
@@ -151,3 +151,4 @@ func (data *DataManager) ProgramExists(p *types.Program) (bool, error) {
 
     return count > 0, nil
 }
+*/

@@ -1,5 +1,6 @@
 package database
 
+/*
 import (
     "database/sql"
     "errors"
@@ -128,3 +129,4 @@ func (data *DataManager) insertHosts(progId int64, hosts []*nmapgo.Host) (DiffsL
     }
     return res, nil
 }
+*/

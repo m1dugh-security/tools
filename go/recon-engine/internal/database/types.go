@@ -1,181 +1,96 @@
 package database
 
 import (
-    "time"
-    "reflect"
-    "fmt"
-    "encoding/json"
+	"time"
+
+	"github.com/m1dugh-security/tools/go/recon-engine/pkg/types"
+	"github.com/uptrace/bun"
 )
 
 type urlDao struct {
-    Id int64
-    ProgId int64
-    Endpoint string
-    Status int
-    ResponseLength int
+    bun.BaseModel       `bun:"table:urls"`
+    ID int64            `bun:",pk,autoincrement"`
+    ProgramId int64     `bun:"program_id"`
+    Endpoint string     `bun:"endpoint"`
+    Status int          `bun:"status"`
+    ResponseLength int  `bun:"response_length"`
 }
 
 type subdomainDao struct {
-    Id int64
-    ProgId int64
+    ProgramID int64
+    ID int64            `bun:",pk,autoincrement"`
     Subdomain string
 }
 
 type targetDao struct {
-    Id int64
-    ProgId int64
-    Category string
+    bun.BaseModel       `bun:"table:targets"`
+    ID int64            `bun:",pk,autoincrement"`
+    ProgramId int64     `bun:"program_id"`
+    Category string     `bun:"target"`
 }
 
 type serviceDao struct {
-    Id int64
-    ProgId int64
-    Subdomain string
-    Addr string
-    Port int
-    Protocol string
-    Name string
-    Product string
-    Version string
-    Additionals string
+    bun.BaseModel       `bun:"table:services"`
+    ID int64            `bun:",pk,autoincrement"`
+    ProgramId int64     `bun:"program_id"`
+    Subdomain string    `bun:"subdomain"`
+    Addr string         `bun:"address"`
+    Port int            `bun:"port"`
+    Protocol string     `bun:"protocol"`
+    Name string         `bun:"name"`
+    Product string      `bun:"product"`
+    Version string      `bun:"version"`
+    Additionals string  `bun:"additinals"`
 }
 
 type programDao struct {
-    Id int64
-    Code string
-    Name string
-    Platform string
-    PlatformUrl string
-    Status string
-    SafeHarbor string
-    Managed bool
-    Category string
-    ReconDate time.Time
+    bun.BaseModel       `bun:"table:programs"`
+    ID int64            `bun:",pk,autoincrement"`
+    Code string         `bun:"code,notnull,unique"`
+    Name string         `bun:"name,notnull"`
+    Platform string     `bun:"platform,notnull"`
+    PlatformUrl string  `bun:"platform_url,notnull"`
+    Status string       `bun:"status"`
+    SafeHarbor string   `bun:"safe_harbor"`
+    Managed bool        `bun:"managed"`
+    Category string     `bun:"category"`
+    ReconDate time.Time `bun:"recon_date,default:current_timestamp"`
+    Urls []*urlDao      `bun:"urls,rel:has-many,join:id=program_id"`
+    Services []*serviceDao  `bun:"services,rel:has-many,join:id=program_id"`     
+    Targets []*targetDao    `bun:"targets,rel:has-many,join:id=program_id"`
+    Subdomains []*subdomainDao  `bun:"rel:has-many,join:id=program_id"`
 }
 
-func (value *serviceDao) Differentiate(old *serviceDao) Diffs {
-    keys := []string{"Protocol", "Name", "Product", "Version", "Additionals"}
-    return calculateDiff(old, value, keys...)
-}
-func (value *programDao) Differentiate(old *programDao) Diffs {
-    keys := []string{"Status", "SafeHarbor", "Managed", "Category"}
-    return calculateDiff(old, value, keys...)
-}
-func (value *subdomainDao) Differentiate(old *subdomainDao) Diffs {
-    keys := []string{"Subdomain"}
-    return calculateDiff(old, value, keys...)
-}
-
-func (value *urlDao) Differentiate(old *urlDao) Diffs {
-    keys := []string{"Endpoint", "Status", "Length"}
-    return calculateDiff(old, value, keys...)
-}
-func (value *targetDao) Differentiate(old *targetDao) Diffs {
-    return calculateDiff(old, value, "Category")
-}
-
-func calculateDiff(old interface{}, value interface{}, fields ...string) Diffs  {
-    res := make(Diffs)
-
-    var oldType, newType reflect.Value
-    var oldNumField int = -1
-    var newNumField int = -1
-    if old != nil {
-        oldType = reflect.ValueOf(old).Elem()
-        if oldType.Kind() == reflect.Struct {
-            oldNumField = oldType.NumField()
-        }
+func toProgramDao(rc *types.ReconedProgram) *programDao {
+    prog := rc.Program
+    res := &programDao{
+        Code: prog.Code(),
+        Name: prog.Name,
+        Platform: prog.Platform,
+        PlatformUrl: prog.PlatformUrl,
+        Status: prog.Status,
+        Managed: prog.Managed,
+        Category: prog.Category,
+        Urls: make([]*urlDao, 0, rc.Urls.Length()),
+        Subdomains: make([]*subdomainDao, 0, rc.Subdomains.Length()),
     }
-    if value != nil {
-        newType = reflect.ValueOf(value).Elem()
-        if newType.Kind() == reflect.Struct {
-            newNumField = newType.NumField()
-        }
+
+    for _, url := range rc.Urls.UnderlyingArray() {
+        res.Urls = append(res.Urls, &urlDao{
+            Endpoint: url.Endpoint,
+            Status: url.Status,
+            ResponseLength: int(url.ResponseLength),
+        })
     }
-    for _, field := range fields {
 
-        var oldIndex, newIndex int
-        for oldIndex = 0; oldIndex < oldNumField;oldIndex++ {
-            f := oldType.Type().Field(oldIndex)
-            if f.Name == field {
-                break
-            }
-        }
-        for newIndex = 0; newIndex < newNumField;newIndex++ {
-            f := newType.Type().Field(newIndex)
-            if f.Name == field {
-                break
-            }
-        }
-        if oldIndex < oldNumField {
-            oldValue := oldType.Field(oldIndex).Interface()
-            if newIndex < newNumField {
-                newValue := newType.Field(newIndex).Interface()
-                if newValue != oldValue {
-                    res[field] = diff{
-                        Old: oldValue,
-                        New: newValue,
-                    }
-                }
-            } else {
-                res[field] = diff{
-                    Old: oldValue,
-                    New: nil,
-                }
-            }
-        } else if newIndex < newNumField { 
-
-            newValue := newType.Field(newIndex).Interface()
-            res[field] = diff{
-                Old: nil,
-                New: newValue,
-            }
-        }
-    }
-    return res
-}
-
-type Diffs map[string]diff
-
-func (d Diffs) String() string {
-    var res string
-    for k, v := range d {
-        res += fmt.Sprintf("%s: '%s' -> '%s'\n", k, v.Old, v.New)
+    for _, subdomain := range rc.Subdomains.UnderlyingArray() {
+        res.Subdomains = append(res.Subdomains, &subdomainDao{
+            Subdomain: subdomain,
+        })
     }
 
     return res
 }
 
-type Differentiable interface {
-    Differentiate(old *interface{}) Diffs
-}
-
-type diff struct {
-    Old interface{}
-    New interface{}
-}
-
-type DiffsList map[string]Diffs
-
-type ProgramDiff struct {
-    ProgId int                  `json:"prog_id"`
-    ProgramDiff Diffs           `json:"program_diff"`
-    TargetDiff  DiffsList       `json:"target_diff"`
-    SubdomainDiff   DiffsList   `json:"subdomain_diff"`
-    UrlDiff     DiffsList       `json:"url_diff"`
-    ServiceDiff DiffsList       `json:"service_diff"`
-}
-
-func (d ProgramDiff) String() string {
-    content, err := json.Marshal(d)
-    if err != nil {
-        return ""
-    }
-
-    return string(content)
-}
-
-func (d ProgramDiff) IsEmpty() bool {
-    return len(d.ProgramDiff) == 0 && len(d.TargetDiff) == 0 && len(d.SubdomainDiff) == 0 && len(d.UrlDiff) == 0 && len(d.ServiceDiff) == 0
-}
+// func fromProgDao(dao *programDao)
 

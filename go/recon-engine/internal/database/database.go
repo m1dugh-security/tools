@@ -1,11 +1,14 @@
 package database
 
 import (
-    "database/sql"
-    "fmt"
-    _ "github.com/lib/pq"
-    "errors"
-    "github.com/m1dugh-security/tools/go/recon-engine/pkg/types"
+	"context"
+	"database/sql"
+	"fmt"
+
+	"github.com/m1dugh-security/tools/go/recon-engine/pkg/types"
+	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/pgdialect"
+	"github.com/uptrace/bun/driver/pgdriver"
 )
 
 
@@ -39,8 +42,9 @@ func DefaultConfig() *Config {
 }
 
 type DataManager struct {
-    db *sql.DB
+    db *bun.DB
     Config *Config
+    ctx context.Context
 }
 
 func New(config *Config) *DataManager {
@@ -50,27 +54,36 @@ func New(config *Config) *DataManager {
 
     return &DataManager{
         Config: config,
+        ctx: context.Background(),
     }
 }
 
-func (data *DataManager) Init() error {
-    psqlinfo := fmt.Sprintf("host=%s user=%s password=%s " +
-    "dbname=%s sslmode=disable", data.Config.Host, data.Config.User, data.Config.Password, data.Config.DBName)
+func (data *DataManager) Init() {
+    dsn := fmt.Sprintf(
+        "%s://%s:%s@%s:%d/%s?sslmode=disable",
+        data.Config.Driver,
+        data.Config.User,
+        data.Config.Password,
+        data.Config.Host,
+        data.Config.Port,
+        data.Config.DBName,
+    )
 
-    db, err := sql.Open(data.Config.Driver, psqlinfo)
-    if err != nil {
-        return errors.New(
-                fmt.Sprintf("DataManager.Init: Could not open %s at %s:%d",
-                    data.Config.User, data.Config.Host, data.Config.Port))
-    }
+    sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
+
+    db := bun.NewDB(sqldb, pgdialect.New())
+
     data.db = db
 
-    err = db.Ping()
-    if err != nil {
-        return errors.New(fmt.Sprintf("DataManager.Init: Error while reaching db"))
-    }
+    db.NewCreateTable().Model(&programDao{}).IfNotExists().Exec(data.ctx)
+    db.NewCreateTable().Model(&urlDao{}).IfNotExists().Exec(data.ctx)
+    db.NewCreateTable().Model(&serviceDao{}).IfNotExists().Exec(data.ctx)
+    db.NewCreateTable().Model(&subdomainDao{}).IfNotExists().Exec(data.ctx)
+    db.NewCreateTable().Model(&targetDao{}).IfNotExists().Exec(data.ctx)
+}
 
-    return nil
+func (data *DataManager) SaveProgram(program *types.ReconedProgram) {
+    data.db.NewInsert()
 }
 
 
@@ -78,30 +91,3 @@ func (data *DataManager) Close() {
     data.db.Close()
     data.db = nil
 }
-
-func (data *DataManager) SaveProgram(prog *types.ReconedProgram) (ProgramDiff, error) {
-    res := ProgramDiff{}
-    diff, progId, err := data.insertProgram(prog.Program)
-    if err != nil {
-        return res, errors.New("DataManager.SaveProgram: could not save program")
-    }
-    res.ProgramDiff = diff
-    res.ProgId = int(progId)
-
-    res.ServiceDiff, err = data.insertHosts(progId, prog.Hosts)
-    if err != nil {
-        return res, errors.New("DataManager.SaveProgram: could not save services in program")
-    }
-    res.SubdomainDiff, err = data.insertSubdomains(progId, prog.Subdomains.ToArray())
-    if err != nil {
-        return res, errors.New("DataManager.SaveProgram: could not save subdomains in program")
-    }
-
-    res.UrlDiff, err = data.insertUrls(progId, prog.Urls.ToArray())
-    if err != nil {
-        return res, errors.New("DataManager.SaveProgram: could not save urls in program")
-    }
-    return res, nil
-}
-
-
