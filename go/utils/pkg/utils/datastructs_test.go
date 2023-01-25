@@ -25,6 +25,23 @@ func (t testVal) Compare(other interface{}) int {
     }
 }
 
+func TestStringSetDiff(t *testing.T) {
+    old := NewStringSet("a", "b", "c", "f")
+    newSet := NewStringSet("b", "c", "d", "e")
+
+    added, removed := old.Diff(newSet)
+
+    expectedAdded := NewStringSet("d", "e")
+    expectedRemoved := NewStringSet("a", "f")
+
+    if !added.Equals(expectedAdded) {
+        t.Errorf("Expected %s, but got %s", expectedAdded.UnderlyingArray(), added.UnderlyingArray())
+    }
+    if !removed.Equals(expectedRemoved) {
+        t.Errorf("Expected %s, but got %s", expectedRemoved.UnderlyingArray(), removed.UnderlyingArray())
+    }
+}
+
 func TestComparableSet(t *testing.T) {
     var set *ComparableSet[testVal] = new(ComparableSet[testVal])
     set.AddElement(testVal{
@@ -62,7 +79,7 @@ func TestComparableSet(t *testing.T) {
 }
 
 func TestStringSetSingleThread(t *testing.T) {
-    set := NewStringSet(nil)
+    set := NewStringSet()
     word := "hello"
     if set.AddWord(word) != true {
         t.Errorf("Expected to be able to add word")
@@ -75,8 +92,8 @@ func TestStringSetSingleThread(t *testing.T) {
     }
 }
 
-func TestStringSetMultiThead(t *testing.T) {
-    set := NewStringSet(nil)
+func TestStringSetMultiThread(t *testing.T) {
+    set := NewStringSet()
     var wg sync.WaitGroup
     sample := 10000
 
@@ -84,7 +101,7 @@ func TestStringSetMultiThead(t *testing.T) {
         wg.Add(1)
         go func(set *StringSet) {
             for i := 0; i < sample; i++ {
-                set.AddWord(fmt.Sprintf("%d", i))
+                set.AddWord(fmt.Sprintf("test: %d", i))
             }
             wg.Done()
         }(set)
