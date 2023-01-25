@@ -36,6 +36,34 @@ func (set *StringSet) Length() int {
     return set.length()
 }
 
+func (set *StringSet) remove(value string) bool {
+    pos, found := set._binsearch(value)
+    if !found {
+        return false
+    }
+
+    middle := set.length() / 2
+    if pos > middle {
+        for i := pos; i < set.length() - 1; i++ {
+            set.values[i] = set.values[i + 1]
+        }
+        set.values = set.values[:set.length() - 1]
+    } else {
+        for i := pos - 1; i > 0 ; i-- {
+            set.values[i + 1] = set.values[i]
+        }
+        set.values = set.values[1:]
+    }
+
+    return true
+}
+
+func (set *StringSet) Remove(value string) bool {
+    set.mut.Lock()
+    defer set.mut.Unlock()
+    return set.remove(value)
+}
+
 /// Returns the underlying array.
 /// Caution: Since it does not return a copy, modifying the underlying array
 /// can break the StringSet
@@ -115,7 +143,7 @@ func (set *StringSet) AddAll(other *StringSet) int {
 func (set *StringSet) ToArray() []string {
     set.mut.Lock()
     defer set.mut.Unlock()
-    res := make([]string, set.Length())
+    res := make([]string, set.length())
     copy(res, set.values)
     return res
 }
@@ -188,15 +216,20 @@ type Comparable interface {
     Compare(value interface{}) int
 }
 
-type ComparableSet[T Comparable] []T
+type ComparableSet[T Comparable] struct {
+    values []T
+    mut *sync.Mutex
+}
 
 func NewComparableSet[T Comparable](values... T) *ComparableSet[T] {
 
-    var res *ComparableSet[T] = &ComparableSet[T]{}
-    *res = make(ComparableSet[T], len(values))
+    res := &ComparableSet[T]{
+        values: make([]T, 0, len(values)),
+        mut: &sync.Mutex{},
+    }
 
     for _, v := range values {
-        res.AddElement(v)
+        res.addElement(v)
     }
 
     return res
@@ -205,11 +238,11 @@ func NewComparableSet[T Comparable](values... T) *ComparableSet[T] {
 func (set *ComparableSet[T]) _binsearch(value T) (int, bool) {
 
     start := 0
-    end := len(*set)
+    end := set.length()
 
     for start < end {
         middle := start + (end - start) / 2
-        elem := (*set)[middle]
+        elem := set.values[middle]
         res := value.Compare(elem)
         if res == 0 {
             return middle, true
@@ -224,15 +257,15 @@ func (set *ComparableSet[T]) _binsearch(value T) (int, bool) {
 }
 
 func (set *ComparableSet[T]) _insertAt(value T, pos int) {
-    *set = append(*set, value)
-    for i := len(*set) - 1; i > pos; i-- {
-        (*set)[i] = (*set)[i - 1]
+    set.values = append(set.values, value)
+    for i := set.length()- 1; i > pos; i-- {
+        set.values[i] = set.values[i - 1]
     }
 
-    (*set)[pos] = value
+    set.values[pos] = value
 }
 
-func (set *ComparableSet[T]) AddElement(value T) bool {
+func (set *ComparableSet[T]) addElement(value T) bool {
     pos, found := set._binsearch(value)
     if found {
         return false
@@ -242,15 +275,37 @@ func (set *ComparableSet[T]) AddElement(value T) bool {
     return true
 }
 
-func (set *ComparableSet[T]) Contains(value T) bool {
+func (set *ComparableSet[T]) AddElement(value T) bool {
+    if set == nil {
+        return false
+    }
+    set.mut.Lock()
+    defer set.mut.Unlock()
+
+    return set.addElement(value)
+}
+
+func (set *ComparableSet[T]) contains(value T) bool {
     _, found := set._binsearch(value)
     return found
 }
 
+func (set *ComparableSet[T]) Contains(value T) bool {
+    if set == nil {
+        return false
+    }
+    set.mut.Lock()
+    defer set.mut.Unlock()
+
+    return set.contains(value)
+}
+
 func (set *ComparableSet[T]) AddAll(other *ComparableSet[T]) int {
+    set.mut.Lock()
+    defer set.mut.Unlock()
     var count int = 0
-    for _, v := range *other {
-        if set.AddElement(v) {
+    for _, v := range other.values {
+        if set.addElement(v) {
             count++
         }
     }
@@ -258,20 +313,34 @@ func (set *ComparableSet[T]) AddAll(other *ComparableSet[T]) int {
     return count
 }
 
+func (set *ComparableSet[T]) length() int {
+    if set == nil {
+        return 0
+    }
+    return len(set.values)
+}
+
 func (set *ComparableSet[T]) Length() int {
-    return len(*set)
+    if set == nil {
+        return 0
+    }
+    set.mut.Lock()
+    defer set.mut.Unlock()
+    return len(set.values)
 }
 
 /// Returns the underlying array.
 /// Caution: Since it does not return a copy, modifying the underlying array
 /// can break the ComparableSet
 func (set *ComparableSet[T]) UnderlyingArray() []T {
-    return *set
+    return set.values
 }
 
 func (set *ComparableSet[T]) ToArray() []T {
-    res := make([]T, len(*set))
-    copy(res, *set)
+    set.mut.Lock()
+    defer set.mut.Unlock()
+    res := make([]T, set.length())
+    copy(res, set.values)
     return res
 }
 
@@ -282,42 +351,42 @@ func (old *ComparableSet[T]) Diff(newSet *ComparableSet[T]) (*ComparableSet[T], 
 
     oldi := 0
     newi := 0
-    for oldi < old.Length() && newi < newSet.Length() {
-        s1 := old.UnderlyingArray()[oldi]
-        s2 := newSet.UnderlyingArray()[newi]
+    for oldi < old.length() && newi < newSet.length() {
+        s1 := old.values[oldi]
+        s2 := newSet.values[newi]
 
         res := s1.Compare(s2)
         if res < 0 {
             oldi++
-            removed.AddElement(s1)
+            removed.addElement(s1)
         } else if res > 0 {
             newi++
-            added.AddElement(s2)
+            added.addElement(s2)
         } else {
             oldi++
             newi++
         }
     }
 
-    for ; newi < newSet.Length(); newi++ {
+    for ; newi < newSet.length(); newi++ {
         s2 := newSet.UnderlyingArray()[newi]
-        added.AddElement(s2)
+        added.addElement(s2)
     }
 
-    for ; oldi < old.Length(); oldi++ {
+    for ; oldi < old.length(); oldi++ {
         s1 := old.UnderlyingArray()[oldi]
-        removed.AddElement(s1)
+        removed.addElement(s1)
     }
 
     return added, removed
 }
 
 func (s *ComparableSet[T]) Equals(other *ComparableSet[T]) bool {
-    if s.Length() != other.Length() {
+    if s.length() != other.length() {
         return false
     }
 
-    for i := 0; i < s.Length(); i++ {
+    for i := 0; i < s.length(); i++ {
         v1 := s.UnderlyingArray()[i]
         v2 := other.UnderlyingArray()[i] 
         if v1.Compare(v2) != 0 {
@@ -326,4 +395,32 @@ func (s *ComparableSet[T]) Equals(other *ComparableSet[T]) bool {
     }
 
     return true
+}
+
+func (set *ComparableSet[T]) remove(value T) bool {
+    pos, found := set._binsearch(value)
+    if !found {
+        return false
+    }
+
+    middle := set.length() / 2
+    if pos > middle {
+        for i := pos; i < set.length() - 1; i++ {
+            set.values[i] = set.values[i + 1]
+        }
+        set.values = set.values[:set.length() - 1]
+    } else {
+        for i := pos - 1; i > 0 ; i-- {
+            set.values[i + 1] = set.values[i]
+        }
+        set.values = set.values[1:]
+    }
+
+    return true
+}
+
+func (set *ComparableSet[T]) Remove(value T) bool {
+    set.mut.Lock()
+    defer set.mut.Unlock()
+    return set.remove(value)
 }
